@@ -1,5 +1,7 @@
-aluno: <sua_matricula>
-uso_ia: <sim|nao>
+aluno: 2024.1905.029-8
+aluno: 2024.1905.000-0
+aluno: 2024.1905.000-0
+uso_ia: sim
 
 # Compiladores I — Trabalho Prático 2: Gerador de Analisadores Sintáticos Descendentes Recursivos
 
