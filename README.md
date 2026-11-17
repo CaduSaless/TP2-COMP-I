@@ -250,4 +250,4 @@ Também rodamos `valgrind --leak-check=full` no gerador (com todas as gramática
 
 ## Uso de IA
 
-Usamos IA apenas na fase final do trabalho. O registro completo está em [USO_IA.md](USO_IA.md).
+Usamos o Claude Code (Claude Sonnet 5.5) em duas fases. Durante a implementação, como tutor para tirar dúvidas de conceito e de C sobre o código fornecido, sem copiar nenhum trecho dos `TODO(aluno)` de uma resposta da IA. Na fase final, para escrever a árvore em SVG, a gramática JSON, os testes novos, o README e o relatório. O registro completo, entrada por entrada, está em [USO_IA.md](USO_IA.md).
