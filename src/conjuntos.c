@@ -3,10 +3,10 @@
  *
  * Fornecido: conj_iniciar e conj_imprimir.
  *
- * TODO(aluno): conj_anulavel, conj_first e conj_follow. Os tres sao
- * calculados por iteracao ate ponto fixo: repita uma passada sobre todas
+ * Implementado: conj_anulavel, conj_first e conj_follow. Os tres sao
+ * calculados por iteracao ate ponto fixo: repete-se uma passada sobre todas
  * as regras enquanto algum conjunto (ou flag) mudar. bitset_unir devolve
- * 1 quando o conjunto de destino muda, o que ajuda a detectar o ponto fixo.
+ * 1 quando o conjunto de destino muda, o que detecta o ponto fixo.
  */
 #include <stdio.h>
 #include <string.h>
@@ -59,7 +59,7 @@ void conj_imprimir(FILE *f, const Gramatica *g)
 }
 
 /* ------------------------------------------------------------------ */
-/* A implementar                                                      */
+/* Anulavel, FIRST e FOLLOW                                           */
 /* ------------------------------------------------------------------ */
 
 /* ---- anulavel ---- */

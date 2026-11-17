@@ -17,7 +17,8 @@
  * em que o else fica com o if mais proximo, como em C.
  *
  * Fornecido: reportar (formata as mensagens).
- * TODO(aluno): verificar_expr e ll1_verificar.
+ * Implementado: verificar_alt, verificar_opc_rep, verificar_expr e
+ * ll1_verificar.
  */
 #include <stdarg.h>
 #include <stdio.h>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="438" height="568" viewBox="0 0 438 568">
+<style>text{font:12px monospace;text-anchor:middle;fill:#111}.e{fill:none;stroke:#94a3b8;stroke-width:1.5}.nt{fill:#dbeafe;stroke:#3b82f6}.tk{fill:#dcfce7;stroke:#16a34a}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<path class="e" d="M212.0,58.0 C212.0,74.0 212.0,74.0 212.0,90.0"/>
+<path class="e" d="M212.0,128.0 C212.0,144.0 212.0,144.0 212.0,160.0"/>
+<path class="e" d="M212.0,198.0 C212.0,214.0 49.0,214.0 49.0,230.0"/>
+<path class="e" d="M212.0,198.0 C212.0,214.0 113.0,214.0 113.0,230.0"/>
+<path class="e" d="M113.0,268.0 C113.0,284.0 51.0,284.0 51.0,300.0"/>
+<path class="e" d="M113.0,268.0 C113.0,284.0 115.0,284.0 115.0,300.0"/>
+<path class="e" d="M113.0,268.0 C113.0,284.0 175.0,284.0 175.0,300.0"/>
+<path class="e" d="M175.0,338.0 C175.0,354.0 175.0,354.0 175.0,370.0"/>
+<path class="e" d="M175.0,408.0 C175.0,424.0 55.0,424.0 55.0,440.0"/>
+<path class="e" d="M175.0,408.0 C175.0,424.0 115.0,424.0 115.0,440.0"/>
+<path class="e" d="M115.0,478.0 C115.0,494.0 115.0,494.0 115.0,510.0"/>
+<path class="e" d="M175.0,408.0 C175.0,424.0 175.0,424.0 175.0,440.0"/>
+<path class="e" d="M175.0,408.0 C175.0,424.0 235.0,424.0 235.0,440.0"/>
+<path class="e" d="M235.0,478.0 C235.0,494.0 235.0,494.0 235.0,510.0"/>
+<path class="e" d="M175.0,408.0 C175.0,424.0 295.0,424.0 295.0,440.0"/>
+<path class="e" d="M212.0,198.0 C212.0,214.0 177.0,214.0 177.0,230.0"/>
+<path class="e" d="M212.0,198.0 C212.0,214.0 311.0,214.0 311.0,230.0"/>
+<path class="e" d="M311.0,268.0 C311.0,284.0 249.0,284.0 249.0,300.0"/>
+<path class="e" d="M311.0,268.0 C311.0,284.0 313.0,284.0 313.0,300.0"/>
+<path class="e" d="M311.0,268.0 C311.0,284.0 373.0,284.0 373.0,300.0"/>
+<path class="e" d="M373.0,338.0 C373.0,354.0 373.0,354.0 373.0,370.0"/>
+<path class="e" d="M373.0,408.0 C373.0,424.0 347.0,424.0 347.0,440.0"/>
+<path class="e" d="M373.0,408.0 C373.0,424.0 399.0,424.0 399.0,440.0"/>
+<path class="e" d="M212.0,198.0 C212.0,214.0 375.0,214.0 375.0,230.0"/>
+<rect class="nt" x="189.0" y="20.0" width="46" height="38" rx="7"/>
+<text x="212.0" y="43.0">json</text>
+<rect class="nt" x="185.0" y="90.0" width="54" height="38" rx="7"/>
+<text x="212.0" y="113.0">valor</text>
+<rect class="nt" x="181.0" y="160.0" width="62" height="38" rx="7"/>
+<text x="212.0" y="183.0">objeto</text>
+<rect class="tk" x="30.0" y="230.0" width="38" height="38" rx="7"/>
+<text x="49.0" y="253.0">'{'</text>
+<rect class="nt" x="82.0" y="230.0" width="62" height="38" rx="7"/>
+<text x="113.0" y="253.0">membro</text>
+<rect class="tk" x="20.0" y="300.0" width="62" height="38" rx="7"/>
+<text x="51.0" y="316.0">STRING</text>
+<text x="51.0" y="331.0">"a"</text>
+<rect class="tk" x="96.0" y="300.0" width="38" height="38" rx="7"/>
+<text x="115.0" y="323.0">':'</text>
+<rect class="nt" x="148.0" y="300.0" width="54" height="38" rx="7"/>
+<text x="175.0" y="323.0">valor</text>
+<rect class="nt" x="148.0" y="370.0" width="54" height="38" rx="7"/>
+<text x="175.0" y="393.0">vetor</text>
+<rect class="tk" x="36.0" y="440.0" width="38" height="38" rx="7"/>
+<text x="55.0" y="463.0">'['</text>
+<rect class="nt" x="88.0" y="440.0" width="54" height="38" rx="7"/>
+<text x="115.0" y="463.0">valor</text>
+<rect class="tk" x="84.0" y="510.0" width="62" height="38" rx="7"/>
+<text x="115.0" y="526.0">NUMBER</text>
+<text x="115.0" y="541.0">1</text>
+<rect class="tk" x="156.0" y="440.0" width="38" height="38" rx="7"/>
+<text x="175.0" y="463.0">','</text>
+<rect class="nt" x="208.0" y="440.0" width="54" height="38" rx="7"/>
+<text x="235.0" y="463.0">valor</text>
+<rect class="tk" x="204.0" y="510.0" width="62" height="38" rx="7"/>
+<text x="235.0" y="533.0">'true'</text>
+<rect class="tk" x="276.0" y="440.0" width="38" height="38" rx="7"/>
+<text x="295.0" y="463.0">']'</text>
+<rect class="tk" x="158.0" y="230.0" width="38" height="38" rx="7"/>
+<text x="177.0" y="253.0">','</text>
+<rect class="nt" x="280.0" y="230.0" width="62" height="38" rx="7"/>
+<text x="311.0" y="253.0">membro</text>
+<rect class="tk" x="218.0" y="300.0" width="62" height="38" rx="7"/>
+<text x="249.0" y="316.0">STRING</text>
+<text x="249.0" y="331.0">"b"</text>
+<rect class="tk" x="294.0" y="300.0" width="38" height="38" rx="7"/>
+<text x="313.0" y="323.0">':'</text>
+<rect class="nt" x="346.0" y="300.0" width="54" height="38" rx="7"/>
+<text x="373.0" y="323.0">valor</text>
+<rect class="nt" x="342.0" y="370.0" width="62" height="38" rx="7"/>
+<text x="373.0" y="393.0">objeto</text>
+<rect class="tk" x="328.0" y="440.0" width="38" height="38" rx="7"/>
+<text x="347.0" y="463.0">'{'</text>
+<rect class="tk" x="380.0" y="440.0" width="38" height="38" rx="7"/>
+<text x="399.0" y="463.0">'}'</text>
+<rect class="tk" x="356.0" y="230.0" width="38" height="38" rx="7"/>
+<text x="375.0" y="253.0">'}'</text>
+</svg>

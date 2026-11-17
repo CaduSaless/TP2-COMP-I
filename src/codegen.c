@@ -15,12 +15,14 @@
  * as primitivas, o lexico (exceto o reconhecimento das expressoes
  * regulares) e a traducao de terminais e nao terminais.
  *
- * TODO(aluno):
+ * Implementado por nos:
  *   - gen_expr: traducao de sequencia, alternativa, [ ] e { }
  *     (esquema da secao 4 do enunciado);
- *   - gen_casamento_regex: converter uma expressao regular de TOKENS em
- *     codigo C (automato finito) que reconhece o maior prefixo;
- *   - gen_token_de_arquivo: leitura do arquivo de tokens do TP1.
+ *   - gen_casamento_regex: expressao regular de TOKENS -> AFN (Thompson)
+ *     -> AFD (subconjuntos) -> codigo C que reconhece o maior prefixo;
+ *   - gen_token_de_arquivo: leitura do arquivo de tokens do TP1;
+ *   - arvore grafica: com --tree, o analisador gerado tambem aceita
+ *     --svg arquivo.svg (bloco rt_svg abaixo).
  */
 #include <ctype.h>
 #include <stdarg.h>
@@ -822,6 +824,235 @@ static const char *const rt_estado[] = {
     NULL
 };
 
+static const char *const rt_svg[] = {
+    "/* ---- arvore de derivacao em SVG (opcao --svg) ---- */",
+    "",
+    "typedef struct {",
+    "    char rotulo[100];       /* nao terminal ou tipo do token */",
+    "    char lexema[24];        /* lexema (so em tokens que nao sao literais) */",
+    "    int pai, primeiro, ultimo, prox;   /* indices em nos_svg; -1 = nenhum */",
+    "    int nivel, token;",
+    "    int alt;                /* altura da subarvore (1 = folha) */",
+    "    double x;               /* posicao horizontal final, em pixels */",
+    "    double rel;             /* posicao em relacao ao pai, antes de x */",
+    "    double *esq, *dir;      /* contorno da subarvore: esq[d] e dir[d] sao os",
+    "                               limites do nivel d, relativos a este no */",
+    "} NoSvg;",
+    "",
+    "static const char *arquivo_svg = NULL;",
+    "static NoSvg *nos_svg = NULL;",
+    "static int nnos_svg = 0, capnos_svg = 0;",
+    "static int *abertos_svg = NULL;   /* abertos_svg[n] = no aberto no nivel n */",
+    "static int capabertos_svg = 0;",
+    "",
+    "static void *memoria_svg(void *p, size_t n)",
+    "{",
+    "    void *novo = realloc(p, n);",
+    "    if (novo == NULL) {",
+    "        fprintf(stderr, \"memoria insuficiente\\n\");",
+    "        exit(EXIT_FAILURE);",
+    "    }",
+    "    return novo;",
+    "}",
+    "",
+    "/* Acrescenta um no como ultimo filho do no aberto no nivel anterior. */",
+    "static int svg_no(const char *rotulo, const char *lexema, int token)",
+    "{",
+    "    NoSvg *n;",
+    "    int i = nnos_svg++;",
+    "",
+    "    if (i == capnos_svg) {",
+    "        capnos_svg = capnos_svg ? 2 * capnos_svg : 64;",
+    "        nos_svg = (NoSvg *) memoria_svg(nos_svg, (size_t) capnos_svg * sizeof(NoSvg));",
+    "    }",
+    "    n = &nos_svg[i];",
+    "    memset(n, 0, sizeof *n);",
+    "    strncpy(n->rotulo, rotulo, sizeof n->rotulo - 1);",
+    "    if (strlen(lexema) > 20) {",
+    "        memcpy(n->lexema, lexema, 17);",
+    "        strcpy(n->lexema + 17, \"...\");",
+    "    } else {",
+    "        strcpy(n->lexema, lexema);",
+    "    }",
+    "    n->pai = nivel_arvore > 0 ? abertos_svg[nivel_arvore - 1] : -1;",
+    "    n->primeiro = n->ultimo = n->prox = -1;",
+    "    n->nivel = nivel_arvore;",
+    "    n->token = token;",
+    "    if (n->pai >= 0) {",
+    "        if (nos_svg[n->pai].primeiro < 0)",
+    "            nos_svg[n->pai].primeiro = i;",
+    "        else",
+    "            nos_svg[nos_svg[n->pai].ultimo].prox = i;",
+    "        nos_svg[n->pai].ultimo = i;",
+    "    }",
+    "    return i;",
+    "}",
+    "",
+    "/* Chamado por arvore_entra, antes de nivel_arvore aumentar. */",
+    "static void svg_entra(const char *nao_terminal)",
+    "{",
+    "    if (nivel_arvore >= capabertos_svg) {",
+    "        capabertos_svg = capabertos_svg ? 2 * capabertos_svg : 32;",
+    "        abertos_svg = (int *) memoria_svg(abertos_svg, (size_t) capabertos_svg * sizeof(int));",
+    "    }",
+    "    abertos_svg[nivel_arvore] = svg_no(nao_terminal, \"\", 0);",
+    "}",
+    "",
+    "/* Chamado por match, com o token corrente. */",
+    "static void svg_folha(const char *tipo, const char *lexema)",
+    "{",
+    "    svg_no(tipo, tipo[0] == '\\'' ? \"\" : lexema, 1);",
+    "}",
+    "",
+    "static void svg_texto(FILE *f, const char *s)",
+    "{",
+    "    for (; *s != '\\0'; s++) {",
+    "        if (*s == '&')",
+    "            fputs(\"&amp;\", f);",
+    "        else if (*s == '<')",
+    "            fputs(\"&lt;\", f);",
+    "        else if (*s == '>')",
+    "            fputs(\"&gt;\", f);",
+    "        else if ((unsigned char) *s < 32)",
+    "            fputc('?', f);",
+    "        else",
+    "            fputc(*s, f);",
+    "    }",
+    "}",
+    "",
+    "static int svg_largura(const NoSvg *n)",
+    "{",
+    "    size_t a = strlen(n->rotulo), b = strlen(n->lexema);",
+    "    return (int) (a > b ? a : b) * 8 + 14;",
+    "}",
+    "",
+    "/* Layout: cada subarvore guarda o contorno (limites esquerdo e direito de",
+    " * cada nivel). Os filhos de um no sao postos da esquerda para a direita, cada",
+    " * um o mais perto possivel do anterior sem que os nos do mesmo nivel se",
+    " * toquem, e o no fica centrado entre o primeiro e o ultimo filho. Os filhos",
+    " * tem indice maior que o pai, entao basta percorrer o vetor de tras para a",
+    " * frente. */",
+    "static void svg_perfil(int i)",
+    "{",
+    "    NoSvg *n = &nos_svg[i], *f;",
+    "    int c, d;",
+    "    double desl, meio;",
+    "",
+    "    n->alt = 1;",
+    "    for (c = n->primeiro; c >= 0; c = nos_svg[c].prox)",
+    "        if (nos_svg[c].alt + 1 > n->alt)",
+    "            n->alt = nos_svg[c].alt + 1;",
+    "    n->esq = (double *) memoria_svg(NULL, (size_t) n->alt * sizeof(double));",
+    "    n->dir = (double *) memoria_svg(NULL, (size_t) n->alt * sizeof(double));",
+    "    n->esq[0] = -svg_largura(n) / 2.0;",
+    "    n->dir[0] = svg_largura(n) / 2.0;",
+    "    for (d = 1; d < n->alt; d++) {",
+    "        n->esq[d] = 1e30;",
+    "        n->dir[d] = -1e30;",
+    "    }",
+    "    for (c = n->primeiro; c >= 0; c = nos_svg[c].prox) {",
+    "        f = &nos_svg[c];",
+    "        desl = 0;",
+    "        if (c != n->primeiro) {",
+    "            desl = -1e30;",
+    "            for (d = 0; d < f->alt; d++)",
+    "                if (n->dir[d + 1] > -1e29 && n->dir[d + 1] - f->esq[d] + 14 > desl)",
+    "                    desl = n->dir[d + 1] - f->esq[d] + 14;",
+    "        }",
+    "        f->rel = desl;",
+    "        for (d = 0; d < f->alt; d++) {",
+    "            if (desl + f->esq[d] < n->esq[d + 1])",
+    "                n->esq[d + 1] = desl + f->esq[d];",
+    "            if (desl + f->dir[d] > n->dir[d + 1])",
+    "                n->dir[d + 1] = desl + f->dir[d];",
+    "        }",
+    "    }",
+    "    if (n->primeiro >= 0) {",
+    "        meio = (nos_svg[n->primeiro].rel + nos_svg[n->ultimo].rel) / 2;",
+    "        for (c = n->primeiro; c >= 0; c = nos_svg[c].prox) {",
+    "            nos_svg[c].rel -= meio;",
+    "            free(nos_svg[c].esq);",
+    "            free(nos_svg[c].dir);",
+    "            nos_svg[c].esq = nos_svg[c].dir = NULL;",
+    "        }",
+    "        for (d = 1; d < n->alt; d++) {",
+    "            n->esq[d] -= meio;",
+    "            n->dir[d] -= meio;",
+    "        }",
+    "    }",
+    "}",
+    "",
+    "/* Grava a arvore em arquivo_svg e libera a memoria. Retorna 0 se deu certo. */",
+    "static int svg_gravar(void)",
+    "{",
+    "    FILE *f;",
+    "    NoSvg *n;",
+    "    int i, d, w, status = 0;",
+    "    double x1, y1, x2, y2, minx = 0, maxx = 0;",
+    "",
+    "    for (i = nnos_svg - 1; i >= 0; i--)",
+    "        svg_perfil(i);",
+    "    for (d = 0; d < nos_svg[0].alt; d++) {",
+    "        if (nos_svg[0].esq[d] < minx)",
+    "            minx = nos_svg[0].esq[d];",
+    "        if (nos_svg[0].dir[d] > maxx)",
+    "            maxx = nos_svg[0].dir[d];",
+    "    }",
+    "    nos_svg[0].x = 20 - minx;",
+    "    for (i = 1; i < nnos_svg; i++)",
+    "        nos_svg[i].x = nos_svg[nos_svg[i].pai].x + nos_svg[i].rel;",
+    "",
+    "    f = fopen(arquivo_svg, \"w\");",
+    "    if (f == NULL) {",
+    "        fprintf(stderr, \"nao foi possivel criar %s\\n\", arquivo_svg);",
+    "        status = 1;",
+    "    } else {",
+    "        fputs(\"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n\", f);",
+    "        fprintf(f, \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"%d\\\" \"",
+    "                \"height=\\\"%d\\\" viewBox=\\\"0 0 %d %d\\\">\\n\", (int) (maxx - minx) + 40,",
+    "                78 + (nos_svg[0].alt - 1) * 70, (int) (maxx - minx) + 40,",
+    "                78 + (nos_svg[0].alt - 1) * 70);",
+    "        fputs(\"<style>text{font:12px monospace;text-anchor:middle;fill:#111}\"",
+    "              \".e{fill:none;stroke:#94a3b8;stroke-width:1.5}\"",
+    "              \".nt{fill:#dbeafe;stroke:#3b82f6}.tk{fill:#dcfce7;stroke:#16a34a}\"",
+    "              \"</style>\\n<rect width=\\\"100%\\\" height=\\\"100%\\\" fill=\\\"#fff\\\"/>\\n\", f);",
+    "        for (i = 1; i < nnos_svg; i++) {",
+    "            n = &nos_svg[i];",
+    "            x1 = nos_svg[n->pai].x;",
+    "            y1 = 39 + nos_svg[n->pai].nivel * 70 + 19;",
+    "            x2 = n->x;",
+    "            y2 = 39 + n->nivel * 70 - 19;",
+    "            fprintf(f, \"<path class=\\\"e\\\" d=\\\"M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f\\\"/>\\n\",",
+    "                    x1, y1, x1, (y1 + y2) / 2, x2, (y1 + y2) / 2, x2, y2);",
+    "        }",
+    "        for (i = 0; i < nnos_svg; i++) {",
+    "            n = &nos_svg[i];",
+    "            w = svg_largura(n);",
+    "            y1 = 39 + n->nivel * 70;",
+    "            fprintf(f, \"<rect class=\\\"%s\\\" x=\\\"%.1f\\\" y=\\\"%.1f\\\" width=\\\"%d\\\" \"",
+    "                    \"height=\\\"38\\\" rx=\\\"7\\\"/>\\n\", n->token ? \"tk\" : \"nt\",",
+    "                    n->x - w / 2.0, y1 - 19, w);",
+    "            fprintf(f, \"<text x=\\\"%.1f\\\" y=\\\"%.1f\\\">\", n->x, n->lexema[0] ? y1 - 3 : y1 + 4);",
+    "            svg_texto(f, n->rotulo);",
+    "            fputs(\"</text>\\n\", f);",
+    "            if (n->lexema[0]) {",
+    "                fprintf(f, \"<text x=\\\"%.1f\\\" y=\\\"%.1f\\\">\", n->x, y1 + 12);",
+    "                svg_texto(f, n->lexema);",
+    "                fputs(\"</text>\\n\", f);",
+    "            }",
+    "        }",
+    "        fputs(\"</svg>\\n\", f);",
+    "        fclose(f);",
+    "    }",
+    "    free(nos_svg[0].esq);",
+    "    free(nos_svg[0].dir);",
+    "    free(nos_svg);",
+    "    free(abertos_svg);",
+    "    return status;",
+    "}",
+    NULL
+};
+
 static const char *const rt_primitivas[] = {
     "/* ---- primitivas ---- */",
     "",
@@ -866,6 +1097,10 @@ static const char *const rt_primitivas[] = {
     "        recuo();",
     "        printf(\"%s\\n\", nao_terminal);",
     "    }",
+    "#if SUPORTE_ARVORE",
+    "    if (arquivo_svg != NULL)",
+    "        svg_entra(nao_terminal);",
+    "#endif",
     "    nivel_arvore++;",
     "}",
     "",
@@ -890,6 +1125,10 @@ static const char *const rt_primitivas[] = {
     "        else",
     "            printf(\"%s '%s'\\n\", nome_token(tok.tipo), tok.lexema);",
     "    }",
+    "#if SUPORTE_ARVORE",
+    "    if (arquivo_svg != NULL)",
+    "        svg_folha(nome_token(tok.tipo), tok.lexema);",
+    "#endif",
     "    avancar();",
     "}",
     "",
@@ -1162,11 +1401,14 @@ static void gerar_main(FILE *f, const Gramatica *g, const OpcoesGeracao *op)
     fputs("    for (i = 1; i < argc; i++) {\n", f);
     fputs("        if (strcmp(argv[i], \"--tree\") == 0) {\n", f);
     fputs("            imprimir_arvore = 1;\n", f);
+    if (op->arvore)
+        fputs("        } else if (strcmp(argv[i], \"--svg\") == 0 && i + 1 < argc) {\n"
+              "            arquivo_svg = argv[++i];\n", f);
     fputs("        } else if (strcmp(argv[i], \"--tokens\") == 0 && i + 1 < argc) {\n", f);
     fputs("            tokens = argv[++i];\n", f);
     fputs("        } else if (argv[i][0] == '-' && argv[i][1] != '\\0') {\n", f);
-    fputs("            fprintf(stderr, \"uso: %s [--tree] [--tokens arquivo.tok | "
-          "programa]\\n\", argv[0]);\n", f);
+    fputs("            fprintf(stderr, \"uso: %s [--tree] [--svg arquivo.svg] "
+          "[--tokens arquivo.tok | programa]\\n\", argv[0]);\n", f);
     fputs("            return 2;\n        } else {\n            arquivo = argv[i];\n"
           "        }\n    }\n", f);
     fputs("    if (imprimir_arvore && !SUPORTE_ARVORE)\n", f);
@@ -1198,6 +1440,10 @@ static void gerar_main(FILE *f, const Gramatica *g, const OpcoesGeracao *op)
     else
         fputs("        free(fonte);\n", f);
     fputs("        if (entrada != stdin)\n            fclose(entrada);\n    }\n", f);
+    if (op->arvore)
+        fputs("    if (arquivo_svg != NULL) {\n"
+              "        if (svg_gravar() != 0)\n            return 2;\n"
+              "        printf(\"arvore gravada em %s\\n\", arquivo_svg);\n    }\n", f);
     fputs("    return 0;\n}\n", f);
 }
 
@@ -1241,6 +1487,8 @@ static int gerar_c(const Gramatica *g, const OpcoesGeracao *op)
     fputc('\n', f);
 
     emit_linhas(f, rt_estado);
+    if (op->arvore)
+        emit_linhas(f, rt_svg);
     if (!op->microc)
         erros += gerar_lexico(f, g);
     gerar_nome_token(f, g);

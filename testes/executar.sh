@@ -86,6 +86,23 @@ for pasta in testes/programas/*/; do
     done
 done
 
+echo "== arvore de derivacao (--tree e --svg)"
+# O analisador de expr gerado com --tree imprime a arvore em texto e grava o
+# SVG. As duas saidas sao comparadas com testes/arvore/.
+if $GERADOR testes/gramaticas/expr.ebnf -o "$SAIDA/expr_arvore" --tree > /dev/null 2>&1 \
+   && $CC $CFLAGS -o "$SAIDA/expr_arvore.bin" "$SAIDA/expr_arvore.c" > /dev/null 2>&1; then
+    SAIDA_ATUAL=$SAIDA/arvore_texto.saida
+    executar "$SAIDA/expr_arvore.bin" --tree --svg "$SAIDA/arvore_expr.svg" testes/arvore/expr.txt
+    # o caminho do SVG impresso depende de $SAIDA: troca-o por um nome fixo
+    sed "s#$SAIDA/#build/#" "$SAIDA_ATUAL" > "$SAIDA_ATUAL.tmp" && mv "$SAIDA_ATUAL.tmp" "$SAIDA_ATUAL"
+    comparar "arvore em texto (--tree)" "$SAIDA_ATUAL" testes/arvore/expr.arvore
+    comparar "arvore grafica (--svg)" "$SAIDA/arvore_expr.svg" testes/arvore/expr.svg
+else
+    total=$((total + 2))
+    falhas=$((falhas + 2))
+    echo "FALHA  arvore: nao foi possivel gerar ou compilar o analisador com --tree"
+fi
+
 echo
 echo "$((total - falhas)) de $total testes passaram"
 [ "$falhas" -eq 0 ]

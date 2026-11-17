@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório do TP2 - Gerador de Analisadores Sintáticos</title>
+<style>
+  @page { size: A4; margin: 2.2cm 2.2cm 2.2cm 2.2cm; }
+  body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.38; color: #111; text-align: justify; }
+  h1 { font-size: 17pt; text-align: center; margin: 0 0 4pt 0; }
+  h2 { font-size: 13pt; margin: 16pt 0 5pt 0; border-bottom: 0.6pt solid #888; padding-bottom: 2pt; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 11pt 0 3pt 0; page-break-after: avoid; }
+  p { margin: 0 0 6pt 0; }
+  .capa { text-align: center; margin-bottom: 14pt; }
+  .capa p { margin: 1pt 0; }
+  .capa .disc { font-size: 11pt; }
+  .capa .autores { margin-top: 8pt; font-size: 10.5pt; }
+  pre, code { font-family: "Consolas", "Courier New", monospace; }
+  pre { font-size: 8.6pt; line-height: 1.28; background: #f4f4f4; border: 0.5pt solid #ccc; padding: 5pt 7pt; margin: 4pt 0 8pt 0; text-align: left; page-break-inside: avoid; white-space: pre; }
+  code { font-size: 9.2pt; background: #f1f1f1; padding: 0 1.5pt; }
+  table { border-collapse: collapse; margin: 5pt auto 9pt auto; font-size: 9.8pt; page-break-inside: avoid; }
+  th, td { border: 0.5pt solid #777; padding: 2.5pt 6pt; text-align: left; vertical-align: top; }
+  th { background: #e9e9e9; }
+  figure { margin: 6pt 0 9pt 0; text-align: center; page-break-inside: avoid; }
+  figcaption { font-size: 9.5pt; margin-top: 3pt; text-align: center; }
+  ul, ol { margin: 2pt 0 7pt 0; padding-left: 20pt; }
+  li { margin-bottom: 2pt; }
+  .duas { display: flex; justify-content: center; align-items: flex-end; gap: 16pt; }
+  .duas img { max-height: 235pt; }
+</style>
+</head>
+<body>
+
+<div class="capa">
+  <p class="disc">Faculdade de Computação (FACOM) - Compiladores I</p>
+  <h1>Trabalho Prático 2: Gerador de Analisadores Sintáticos Descendentes Recursivos</h1>
+  <p class="disc">Relatório técnico</p>
+  <p class="autores">RGA: 2024.1905.029-8 &nbsp;|&nbsp; 2024.1905.065-4 &nbsp;|&nbsp; 2024.1905.022-0</p>
+  <p class="autores">Novembro de 2026</p>
+</div>
+
+<h2>1. Introdução</h2>
+<p>Este trabalho implementa um gerador de analisadores sintáticos. O programa <code>gerador</code> lê uma gramática escrita em EBNF e produz, em ANSI C, o código de um analisador sintático descendente recursivo para a linguagem descrita por ela. O gerador não lê programas do usuário. Ele só escreve o código do analisador, e é esse analisador, depois de compilado, que lê o programa token a token e diz se ele pertence à linguagem.</p>
+<p>O gerador faz cinco etapas: leitura da gramática, verificação semântica, cálculo dos conjuntos anulável, FIRST e FOLLOW, verificação da condição LL(1) e geração de código. O resultado foi validado com cinco gramáticas (três válidas e duas que devem ser recusadas), incluindo a de Micro C, que usa o scanner feito no TP1. Como extra, o analisador gerado também desenha a árvore de derivação, em texto e em imagem SVG.</p>
+<p>O código tem cerca de 3900 linhas de C (<code>src/</code>), compila com <code>gcc -ansi -pedantic -Wall -Wextra</code> sem nenhum aviso e foi verificado com <code>valgrind --leak-check=full</code>, sem vazamentos. Os testes automáticos totalizam 26 casos, e todos passam.</p>
+
+<h2>2. Visão geral</h2>
+<figure>
+<svg width="640" height="92" viewBox="0 0 640 92" xmlns="http://www.w3.org/2000/svg" font-family="Times New Roman, serif" font-size="11">
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#444"/></marker></defs>
+  <rect x="2" y="14" width="92" height="44" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="48" y="33" text-anchor="middle">gramatica</text><text x="48" y="47" text-anchor="middle">.ebnf</text>
+  <rect x="124" y="14" width="92" height="44" rx="5" fill="#fef3c7" stroke="#d97706"/>
+  <text x="170" y="33" text-anchor="middle">gerador</text><text x="170" y="47" text-anchor="middle">(5 etapas)</text>
+  <rect x="246" y="14" width="92" height="44" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="292" y="33" text-anchor="middle">parser.c</text><text x="292" y="47" text-anchor="middle">parser.h</text>
+  <rect x="368" y="14" width="92" height="44" rx="5" fill="#fef3c7" stroke="#d97706"/>
+  <text x="414" y="33" text-anchor="middle">gcc</text><text x="414" y="47" text-anchor="middle">-ansi -pedantic</text>
+  <rect x="490" y="14" width="92" height="44" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="536" y="33" text-anchor="middle">analisador</text><text x="536" y="47" text-anchor="middle">gerado</text>
+  <path d="M94,36 H122" stroke="#444" marker-end="url(#a)"/><path d="M216,36 H244" stroke="#444" marker-end="url(#a)"/>
+  <path d="M338,36 H366" stroke="#444" marker-end="url(#a)"/><path d="M460,36 H488" stroke="#444" marker-end="url(#a)"/>
+  <text x="536" y="82" text-anchor="middle">programa do usuario: "entrada aceita" ou erro</text>
+  <path d="M536,60 V68" stroke="#444" marker-end="url(#a)"/>
+</svg>
+<figcaption>Figura 1. Fluxo do trabalho: o gerador roda uma vez por gramática e o analisador gerado roda uma vez por programa.</figcaption>
+</figure>
+
+<p>Os módulos de <code>src/</code> seguem as etapas:</p>
+<table>
+<tr><th>Etapa</th><th>Arquivo</th><th>Responsabilidade</th></tr>
+<tr><td>1. Leitura</td><td><code>ebnf_lexer.c</code>, <code>ebnf_parser.c</code></td><td>Lê as seções TOKENS e RULES e monta a árvore <code>Expr</code> de cada regra</td></tr>
+<tr><td>2. Verificação</td><td><code>verificacao.c</code></td><td>Indefinidos, terminais não declarados, inalcançáveis, improdutivos, recursão à esquerda</td></tr>
+<tr><td>3. Conjuntos</td><td><code>conjuntos.c</code></td><td>Anulável, FIRST e FOLLOW</td></tr>
+<tr><td>4. LL(1)</td><td><code>ll1.c</code></td><td>As três condições LL(1)</td></tr>
+<tr><td>5. Geração</td><td><code>codegen.c</code></td><td>Escreve o <code>.c</code> e o <code>.h</code> do analisador</td></tr>
+<tr><td>Apoio</td><td><code>gramatica.c</code>, <code>bitset.c</code>, <code>util.c</code>, <code>main.c</code></td><td>Estruturas, conjuntos de bits, mensagens de erro e ordem das etapas</td></tr>
+</table>
+<p>O <code>main.c</code> executa as etapas em sequência e para na primeira que encontra erros. Avisos não impedem a geração, mas erros impedem, e nesse caso nenhum arquivo é escrito.</p>
+
+<h2>3. A notação de entrada</h2>
+<p>Um arquivo <code>.ebnf</code> tem duas seções. Em TOKENS ficam os terminais, definidos por expressões regulares entre barras, e as diretivas SKIP para o que deve ser ignorado. Em RULES ficam as regras, e a primeira define o símbolo inicial. Terminais com nome usam só maiúsculas, não terminais começam com minúscula e palavras fixas da linguagem vão entre aspas. Exemplo (<code>expr.ebnf</code>):</p>
+<pre>TOKENS
+  NUM  = /[0-9]+/ ;
+  ID   = /[a-zA-Z_][a-zA-Z0-9_]*/ ;
+  SKIP = /[ \t\r\n]+/ ;
+RULES
+  expr   = term { ( "+" | "-" ) term } ;
+  term   = factor { ( "*" | "/" ) factor } ;
+  factor = NUM | ID | "(" expr ")" ;</pre>
+<p>Na memória, o lado direito de cada regra é uma árvore <code>Expr</code> com sete tipos de nó: terminal, não terminal, sequência, alternativa, opcional <code>[ ]</code>, repetição <code>{ }</code> e vazio. Os parênteses só agrupam e não geram nó. Todas as etapas seguintes percorrem essa árvore, e os atributos calculados (anulável, FIRST e FOLLOW) ficam em cada nó, não só em cada regra.</p>
+
+<h2>4. Algoritmos</h2>
+
+<h3>4.1 Leitura da gramática</h3>
+<p>A própria notação EBNF é lida por um analisador descendente recursivo, com uma função por regra da gramática da notação: <code>parse_expr</code> lê <code>seq { "|" seq }</code>, <code>parse_seq</code> lê <code>{ fator }</code> e <code>parse_fator</code> lê terminal, não terminal ou um grupo entre <code>( )</code>, <code>[ ]</code> ou <code>{ }</code>. Uma sequência com um só fator devolve o próprio fator, e uma alternativa com um só ramo devolve o próprio ramo, de modo que a árvore não tem nós inúteis. Quando há erro de sintaxe, o leitor descarta tokens até o próximo <code>;</code> e continua, para reportar vários erros de uma vez.</p>
+
+<h3>4.2 Verificações semânticas</h3>
+<ul>
+<li><b>Indefinidos e não declarados:</b> um não terminal usado sem regra e um terminal sem declaração em TOKENS são erros.</li>
+<li><b>Inalcançáveis (aviso):</b> ponto fixo que marca o símbolo inicial e, enquanto algo mudar, marca todo não terminal usado na regra de um não terminal já marcado.</li>
+<li><b>Improdutivos (erro):</b> ponto fixo que começa com todos improdutivos e marca como produtivo o não terminal cuja regra passe a derivar uma cadeia de terminais. <code>[ a ]</code> e <code>{ a }</code> são sempre produtivos, pois podem derivar a cadeia vazia.</li>
+<li><b>Recursão à esquerda (erro):</b> veja a seção 4.4.</li>
+</ul>
+
+<h3>4.3 Anulável, FIRST e FOLLOW</h3>
+<p>Os três conjuntos são calculados por iteração até o ponto fixo: uma passada sobre todas as regras se repete enquanto algum conjunto mudar. A função de união de conjuntos de bits devolve 1 quando o destino muda, o que dá o critério de parada. As regras usadas para um nó <i>e</i> são:</p>
+<table>
+<tr><th>Nó</th><th>Anulável</th><th>FIRST</th></tr>
+<tr><td>terminal t</td><td>não</td><td>{t}</td></tr>
+<tr><td>não terminal A</td><td>anulável(A)</td><td>FIRST(A)</td></tr>
+<tr><td>vazio, <code>[ a ]</code>, <code>{ a }</code></td><td>sim</td><td>vazio / FIRST(a) / FIRST(a)</td></tr>
+<tr><td>sequência a<sub>1</sub> ... a<sub>n</sub></td><td>todos anuláveis</td><td>união dos FIRST(a<sub>i</sub>) até o primeiro a<sub>i</sub> não anulável</td></tr>
+<tr><td>alternativa a<sub>1</sub> | ... | a<sub>n</sub></td><td>algum anulável</td><td>união dos FIRST(a<sub>i</sub>)</td></tr>
+</table>
+<p>O FOLLOW é propagado de cima para baixo. O FOLLOW da regra de um não terminal A recebe FOLLOW(A), e o do símbolo inicial recebe <code>$</code>. Numa sequência, percorre-se da direita para a esquerda mantendo o "resto": o FOLLOW de a<sub>i</sub> recebe o FIRST do sufixo a<sub>i+1</sub> ... a<sub>n</sub> e, se esse sufixo for anulável, também o FOLLOW da sequência. Em <code>{ a }</code>, o FOLLOW de <i>a</i> recebe FOLLOW(<code>{ a }</code>) e também FIRST(<i>a</i>), porque depois de <i>a</i> pode vir outra repetição. Para <code>expr.ebnf</code> o programa calcula FIRST(expr) = {NUM, ID, '('} e FOLLOW(expr) = {$, ')'}, o que coincide com o cálculo feito à mão.</p>
+
+<h3>4.4 Recursão à esquerda</h3>
+<p>Monta-se uma matriz em que a posição (A, B) vale 1 quando B pode aparecer na extremidade esquerda da regra de A. Numa sequência contam-se os filhos até o primeiro não anulável, o que pega casos como <code>item = [ "," ] lista</code>, em que o prefixo opcional não esconde a recursão. Depois calcula-se o fecho transitivo da matriz (estilo Warshall) e olha-se a diagonal: se A começa a própria regra, a recursão é direta, e se A só volta a si passando por outros não terminais, é indireta. A gramática de teste <code>recursao_esquerda.ebnf</code> é recusada com quatro erros, dois diretos (<code>expr</code> e <code>term</code>) e dois indiretos (<code>lista</code> e <code>item</code>).</p>
+
+<h3>4.5 Condição LL(1)</h3>
+<p>Para cada nó da árvore verifica-se:</p>
+<ol>
+<li>em <i>a</i><sub>1</sub> | ... | <i>a</i><sub>n</sub>, os FIRST das alternativas são disjuntos dois a dois e no máximo uma alternativa é anulável;</li>
+<li>se uma alternativa é anulável, o FOLLOW dela é disjunto dos FIRST das outras;</li>
+<li>em <code>[ a ]</code> e <code>{ a }</code>, <i>a</i> não é anulável e FIRST(<i>a</i>) é disjunto do FOLLOW da construção.</li>
+</ol>
+<p>As violações de 1, 2 e da parte "não anulável" de 3 são erros. A interseção FIRST(<i>a</i>) com o FOLLOW em <code>[ ]</code> e <code>{ }</code> é só um aviso, resolvido de forma gulosa (seção 4.7). Exemplo de erro, com a gramática <code>conflito_ll1.ebnf</code>:</p>
+<pre>conflito_ll1.ebnf:8:10: erro: conflito LL(1) em stmt: alternativas 1 e 2 comecam com {ID}
+conflito_ll1.ebnf: a gramatica nao e LL(1); nenhum codigo foi gerado</pre>
+
+<h3>4.6 Geração de código</h3>
+<p>Cada não terminal vira uma função <code>parse_X()</code>. A tradução segue o esquema abaixo, em que as condições testam o FIRST do ramo:</p>
+<table>
+<tr><th>Construção</th><th>Código gerado</th></tr>
+<tr><td>terminal <i>t</i></td><td><code>match(T);</code></td></tr>
+<tr><td>não terminal <i>A</i></td><td><code>parse_A();</code></td></tr>
+<tr><td>sequência</td><td>a tradução de cada filho, em ordem</td></tr>
+<tr><td>alternativa</td><td><code>if (FIRST(a1)) {...} else if (FIRST(a2)) {...} else { erro }</code>. O ramo anulável vai no <code>else</code>.</td></tr>
+<tr><td><code>[ a ]</code></td><td><code>if (FIRST(a)) {...}</code></td></tr>
+<tr><td><code>{ a }</code></td><td><code>while (FIRST(a)) {...}</code></td></tr>
+</table>
+<p>O teste de FIRST usa até três comparações diretas (<code>tok.tipo == T_A || ...</code>). Com mais tokens, o gerador cria uma constante <code>conj_N</code> e chama <code>pertence()</code>; conjuntos iguais compartilham a mesma constante. O código gerado para <code>expr</code> é:</p>
+<pre>void parse_expr(void)
+{
+    parse_term();
+    while (tok.tipo == T_MAIS || tok.tipo == T_MENOS) {
+        if (tok.tipo == T_MAIS) {
+            match(T_MAIS);
+        } else if (tok.tipo == T_MENOS) {
+            match(T_MENOS);
+        } else {
+            erro_sintatico(conj_0);
+        }
+        parse_term();
+    }
+}</pre>
+<p>Os erros sintáticos dizem a posição e os tokens esperados, que vêm dos conjuntos FIRST e FOLLOW: <code>linha 1, coluna 10: encontrado ')', esperado um de {NUM, ID, '('}</code>.</p>
+
+<h3>4.7 Else pendente</h3>
+<p>Na regra de Micro C <code>comando_if = "if" "(" expressao ")" comando [ "else" comando ]</code>, o FIRST do opcional e o FOLLOW do <code>comando_if</code> têm o <code>else</code> em comum. O gerador emite o aviso <code>conflito LL(1) em comando_if: FIRST e FOLLOW de [ ] se intersectam (resolvido de forma gulosa) em {'else'}</code>. O código gerado entra no <code>if</code> sempre que o token é <code>else</code>, então o <code>else</code> fica com o <code>if</code> mais próximo, como em C.</p>
+
+<h3>4.8 Analisador léxico gerado</h3>
+<p>Na gramática com léxico próprio, cada expressão regular de TOKENS é convertida em um autômato. A expressão é lida com uma gramática de alternativa, concatenação, repetição (<code>*</code>, <code>+</code>, <code>?</code>) e átomos (grupos, classes <code>[a-z]</code> e <code>[^...]</code>, ponto e escapes). Dela se monta um AFN pela construção de Thompson, que é determinizado pela construção de subconjuntos, e o AFD é escrito como um <code>switch</code> em C que devolve o tamanho do maior prefixo reconhecido. O léxico testa todos os literais e todos os terminais com regex e fica com o maior casamento. Em caso de empate, o literal vence, e é assim que <code>"while"</code> não vira <code>ID</code>.</p>
+
+<h2>5. Integração com o scanner do TP1 (Micro C)</h2>
+<p>Quando a gramática declara <code>TOKENS EXTERN "tokens.h" ;</code> e o gerador roda com <code>--scanner microc</code>, o analisador não tem léxico próprio. Ele chama <code>proximo_token()</code>, uma função em <code>microc/scanner.c</code> que encapsula o scanner do TP1, e os terminais da gramática passam a ser os nomes de <code>TokenType</code>. O arquivo <code>tokens.h</code> é lido pelo gerador (<code>microc_carregar_tokens_h</code>), que confere se cada terminal existe na enumeração e traduz cada literal (<code>"+"</code> vira <code>PLUS</code>, <code>"if"</code> vira <code>IF</code> etc.). O analisador também lê o arquivo de tokens gravado pelo TP1, com a opção <code>--tokens</code>.</p>
+<p>A gramática de Micro C é a do Apêndice B do livro-texto, fatorada para LL(1): <code>atribuicao_interna</code> e <code>fator</code> tinham duas alternativas iniciadas por <code>ID</code>, e o opcional <code>[ "[" expressao "]" ]</code> substitui as duas.</p>
+<p>Correções feitas no TP1 para esta integração (marcadas com <code>TP2 ALTERADO</code> nos fontes):</p>
+<ul>
+<li>prefixo <code>microc_yy</code> e <code>%option noyywrap</code>, com a regra <code>&lt;&lt;EOF&gt;&gt;</code> devolvendo <code>END_OF_FILE</code>;</li>
+<li><code>TokenType</code>, <code>Token</code> e <code>YYSTYPE</code> movidos para o <code>tokens.h</code>;</li>
+<li>o erro "String nao terminada" passou a ser reportado na linha da própria string: a quebra de linha volta para a entrada com <code>yyless(0)</code> e é contada depois (antes o erro aparecia na linha seguinte);</li>
+<li>o lexema de <code>ID</code> e das constantes vem da tabela de strings, com os escapes já convertidos, e o token <code>UNDEF</code> leva a mensagem de erro do scanner;</li>
+<li>tokens devolvidos pelo código ASCII são convertidos para <code>TokenType</code>. Valores até <code>PRINT</code> são sempre <code>TokenType</code>, então o <code>!</code> (código 33) é devolvido como <code>NOT</code>;</li>
+<li><code>microc_tabela_liberar()</code> libera a tabela de strings, para não haver vazamento.</li>
+</ul>
+<p>Como o scanner do TP1 só guarda a linha de cada token, as mensagens de erro neste modo não têm coluna.</p>
+
+<h2>6. Árvore de derivação (extensão)</h2>
+<p>Com a geração em modo <code>--tree</code>, o analisador aceita duas opções. A opção <code>--tree</code> imprime a árvore no terminal, com um nível de recuo por chamada de procedimento e as folhas sendo os tokens consumidos. A opção <code>--svg arquivo.svg</code> grava a mesma árvore como imagem. Para a entrada <code>2 * x + (3 - y)</code>:</p>
+<pre>expr
+  term
+    factor
+      NUM '2'
+    '*'
+    factor
+      ID 'x'
+  '+'
+  term
+    ...</pre>
+<p><b>Como a imagem é produzida.</b> As funções <code>arvore_entra</code> e <code>match</code>, que já imprimiam o texto, também guardam cada nó num vetor, em pré-ordem, com o índice do pai. Ao fim de uma análise bem-sucedida, a função <code>svg_gravar</code> calcula as posições e escreve o arquivo. O layout usa contornos: cada subárvore guarda o limite esquerdo e o direito de cada nível. Os filhos são colocados da esquerda para a direita, o mais perto possível sem que dois nós do mesmo nível se toquem, e o pai fica centralizado entre o primeiro e o último filho. Como os filhos têm índice maior que o pai, basta percorrer o vetor de trás para a frente, e o custo é linear no número de nós vezes a altura. O arquivo SVG não depende de bibliotecas nem de programas externos e abre em qualquer navegador. Não terminais saem em azul e tokens em verde, e tokens com lexema variável mostram o lexema embaixo do nome. Lexemas com mais de 20 caracteres são abreviados, e caracteres especiais de XML são escapados.</p>
+<div class="duas">
+<figure style="margin:0"><img src="../docs/arvore_expr.svg" style="max-height:235pt"><figcaption>Figura 2. <code>2 * x + (3 - y)</code> com a gramática <code>expr</code>.</figcaption></figure>
+<figure style="margin:0"><img src="../docs/arvore_json.svg" style="max-height:235pt"><figcaption>Figura 3. <code>{"a": [1, true], "b": {}}</code> com a gramática <code>json</code>.</figcaption></figure>
+</div>
+<p>O código dessa parte fica no vetor <code>rt_svg</code> de <code>src/codegen.c</code> e só é incluído no analisador quando a geração usa <code>--tree</code>. Nos testes, a memória foi verificada com valgrind, com e sem <code>--svg</code>.</p>
+
+<h2>7. Testes e resultados</h2>
+<p>O comando <code>make test</code> executa o gerador e os analisadores gerados e compara cada saída (texto e código de saída) com o arquivo esperado. Foram usadas cinco gramáticas:</p>
+<table>
+<tr><th>Gramática</th><th>Descrição</th><th>Programas</th><th>Resultado</th></tr>
+<tr><td><code>expr.ebnf</code></td><td>expressões aritméticas</td><td>3 aceitos, 4 rejeitados</td><td>passa</td></tr>
+<tr><td><code>json.ebnf</code></td><td>JSON simplificado (objetos, vetores, strings, números, literais)</td><td>3 aceitos, 3 rejeitados</td><td>passa</td></tr>
+<tr><td><code>microc.ebnf</code></td><td>Micro C, com o scanner do TP1</td><td>3 aceitos, 3 rejeitados</td><td>passa</td></tr>
+<tr><td><code>recursao_esquerda.ebnf</code></td><td>recusada: 2 recursões diretas e 2 indiretas</td><td>nenhum</td><td>recusada, 4 erros</td></tr>
+<tr><td><code>conflito_ll1.ebnf</code></td><td>recusada: alternativas começando com <code>ID</code></td><td>nenhum</td><td>recusada, 1 erro</td></tr>
+</table>
+<p>Os programas rejeitados cobrem erro sintático (expressão incompleta em <code>2 * (x + )</code>, parêntese que não fecha, dois números seguidos, falta de <code>:</code> em JSON, vírgula sobrando antes de <code>]</code>, <code>;</code> no lugar de uma expressão em Micro C), erro léxico (caractere <code>@</code> e string não terminada em Micro C) e declaração fora do lugar em Micro C (uma declaração depois de um comando, quando o bloco só aceita declarações no início). Os 26 casos de <code>make test</code> são: 5 gramáticas, 19 programas e 2 conferências da árvore (texto e SVG de <code>2 * x + (3 - y)</code>). Resultado final: 26 de 26 testes passam.</p>
+<p>Outras verificações feitas:</p>
+<ul>
+<li><code>make clean &amp;&amp; make</code> compila sem nenhum aviso com <code>gcc -ansi -pedantic -Wall -Wextra</code> (só o <code>lex.yy.c</code> do flex é compilado sem essa exigência);</li>
+<li>o código gerado para cada gramática compila com as mesmas opções e também não emite avisos;</li>
+<li><code>valgrind --leak-check=full</code> não aponta vazamentos nem acessos inválidos no gerador (rodado com todas as gramáticas) nem nos analisadores gerados (rodados com todos os programas de teste, com <code>--tree</code> e <code>--svg</code>);</li>
+<li>nenhum comentário <code>TODO(aluno)</code> restou no código.</li>
+</ul>
+
+<h2>8. Decisões e limitações</h2>
+<ul>
+<li><b>Conflito em <code>[ ]</code> e <code>{ }</code> é aviso, não erro.</b> É o que permite aceitar o else pendente de Micro C, com a regra gulosa. Já um conteúdo anulável dentro de <code>{ }</code> é erro, porque o laço poderia não consumir nada e não terminar.</li>
+<li><b>Recursão à esquerda é checada logo depois do anulável e antes de FIRST e FOLLOW.</b> A checagem só precisa da informação de anulável, e assim FIRST, FOLLOW e a verificação LL(1) só rodam em gramáticas que já passaram por ela.</li>
+<li><b>Em Micro C não há coluna nas mensagens.</b> O scanner do TP1 só registra a linha de cada token.</li>
+<li><b>A árvore SVG só é gravada se a entrada for aceita.</b> Em caso de erro, o analisador termina na hora com a mensagem, e uma árvore incompleta não é gravada.</li>
+<li><b>Tamanho da imagem.</b> O layout é compacto, mas programas grandes geram árvores largas. O programa <code>bubble.mc</code>, de Micro C, tem 534 nós e gera uma imagem com cerca de 8700 pixels de largura. Por ser vetorial, ela pode ser ampliada ou reduzida no navegador sem perder qualidade.</li>
+<li><b>Lexema limitado.</b> No analisador com léxico próprio, o lexema de um token tem no máximo 99 caracteres, e na imagem os lexemas com mais de 20 caracteres são abreviados.</li>
+</ul>
+
+<h2>9. Uso de IA</h2>
+<p>Usamos IA generativa (Claude Code, modelo Claude Sonnet 5.5) apenas na fase final: para explicar o código, para escrever a extensão da árvore em SVG, para criar a gramática JSON e os testes da árvore, para pequenos ajustes (mensagem do aviso de inalcançável e remoção dos comentários <code>TODO(aluno)</code>) e para o README. A implementação das etapas do gerador foi feita pelo grupo, sem IA. O registro detalhado de cada uso, no formato do TP1, está em <code>USO_IA.md</code>.</p>
+
+<h2>10. Conclusão</h2>
+<p>O gerador cumpre as cinco etapas pedidas: lê a EBNF, verifica a gramática, calcula anulável, FIRST e FOLLOW, confere a condição LL(1) e escreve um analisador descendente recursivo em ANSI C. Ele recusa gramáticas com recursão à esquerda e com conflitos LL(1), aceita o else pendente de Micro C com a regra gulosa, e funciona tanto com o léxico gerado a partir das expressões regulares quanto com o scanner do TP1. A extensão da árvore de derivação em SVG torna fácil conferir o comportamento do analisador: quando uma entrada não é reconhecida como esperado, ver a árvore mostra em qual procedimento o analisador parou ou qual regra foi escolhida.</p>
+
+<h2>Referências</h2>
+<ul>
+<li>Manual do TP2: Gerador de Analisadores Sintáticos (enunciado e roteiro de implementação da disciplina).</li>
+<li>Livro-texto da disciplina, Apêndice B (gramática de Micro C) e seção 2.3.1 (<code>tokens.h</code>).</li>
+</ul>
+
+</body>
+</html>

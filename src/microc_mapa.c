@@ -10,7 +10,7 @@
  *
  * Se o seu tokens.h do TP1 usar outros nomes, ajuste a tabela.
  *
- * TODO(aluno): implementar microc_carregar_tokens_h.
+ * microc_carregar_tokens_h le a enumeracao TokenType do tokens.h do TP1.
  */
 #include <ctype.h>
 #include <stdio.h>

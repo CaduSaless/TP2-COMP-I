@@ -1,0 +1,23 @@
+expr
+  term
+    factor
+      NUM '2'
+    '*'
+    factor
+      ID 'x'
+  '+'
+  term
+    factor
+      '('
+      expr
+        term
+          factor
+            NUM '3'
+        '-'
+        term
+          factor
+            ID 'y'
+      ')'
+entrada aceita
+arvore gravada em build/arvore_expr.svg
+status 0

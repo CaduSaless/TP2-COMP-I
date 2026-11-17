@@ -1,11 +1,9 @@
 /*
  * verificacao.c - Verificacoes semanticas da gramatica (etapa 2).
  *
- * Ja implementados (use como modelo):
- *   - verif_indefinidos: nao terminais usados mas nao definidos;
- *   - verif_terminais:   terminais nomeados sem declaracao.
- *
- * TODO(aluno):
+ * Verificacoes:
+ *   - verif_indefinidos:       nao terminais usados mas nao definidos;
+ *   - verif_terminais:         terminais nomeados sem declaracao;
  *   - verif_inalcancaveis      (aviso)
  *   - verif_improdutivos       (erro)
  *   - verif_recursao_esquerda  (erro; direta e indireta)
@@ -65,7 +63,7 @@ static int verif_terminais(Gramatica *g, int modo_microc)
 }
 
 /* ------------------------------------------------------------------ */
-/* A implementar                                                      */
+/* Inalcancaveis, improdutivos e recursao a esquerda                  */
 /* ------------------------------------------------------------------ */
 
 /* ---- inalcancaveis ---- */
@@ -106,8 +104,8 @@ static int verif_inalcancaveis(Gramatica *g)
 
     for (i = 0; i < g->nnts; i++)
         if (!c.marcado[i] && g->nts[i].regra != NULL)
-            diag_aviso(g->nts[i].linha_def, 0,
-                       "nao terminal %s inalcancavel a partir do simbolo inicial %s",
+            diag_aviso(g->nts[i].linha, g->nts[i].coluna,
+                       "nao terminal %s inalcancavel a partir de %s",
                        g->nts[i].nome, g->nts[g->inicial].nome);
     free(c.marcado);
     return 0;
